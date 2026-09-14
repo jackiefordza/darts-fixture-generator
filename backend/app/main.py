@@ -10,7 +10,13 @@ from pydantic import BaseModel, Field
 
 from app.domain import CalendarEventType
 from app.persistence import SQLiteRepository
-from app.services.seasons import ConflictError, ExportValidationError, NotFoundError, SeasonService
+from app.services.seasons import (
+    ConflictError,
+    ExportValidationError,
+    MoveConflictError,
+    NotFoundError,
+    SeasonService,
+)
 
 
 def health_check() -> dict[str, str]:
@@ -51,6 +57,12 @@ class EventInput(BaseModel):
     appears_on_poster: bool = False
 
 
+class FixtureMoveInput(BaseModel):
+    new_date: date
+    reason: str | None = None
+    actor: str | None = None
+
+
 def create_app(database_url: str | None = None) -> FastAPI:
     repository = SQLiteRepository(
         database_url or getenv("FIXTURE_GENERATOR_DATABASE_URL", "sqlite:///fixture_generator.db")
@@ -75,6 +87,15 @@ def create_app(database_url: str | None = None) -> FastAPI:
                 {
                     "message": str(error),
                     "issues": [asdict(issue) for issue in error.validation.issues],
+                },
+            ) from error
+        except MoveConflictError as error:
+            raise HTTPException(
+                409,
+                {
+                    "message": str(error),
+                    "issues": [asdict(issue) for issue in error.validation.issues],
+                    "suggested_dates": error.suggested_dates,
                 },
             ) from error
         except (ValueError, KeyError) as error:
@@ -143,6 +164,24 @@ def create_app(database_url: str | None = None) -> FastAPI:
     @app.post("/seasons/{season_id}/validate")
     def validate(season_id: str, service: SeasonService = Depends(svc)):
         return call(lambda: service.validate(season_id))
+
+    @app.post("/seasons/{season_id}/regenerate")
+    def regenerate(season_id: str, seed: int | None = None, service: SeasonService = Depends(svc)):
+        return call(lambda: service.regenerate(season_id, seed))
+
+    @app.get("/fixtures/{fixture_id}")
+    def get_fixture(fixture_id: str, service: SeasonService = Depends(svc)):
+        return call(lambda: service.get_fixture(fixture_id))
+
+    @app.post("/fixtures/{fixture_id}/move")
+    def move_fixture(
+        fixture_id: str, payload: FixtureMoveInput, service: SeasonService = Depends(svc)
+    ):
+        return call(
+            lambda: service.move_fixture(
+                fixture_id, payload.new_date, reason=payload.reason, actor=payload.actor
+            )
+        )
 
     def csv_response(csv_text: str, filename: str) -> Response:
         return Response(

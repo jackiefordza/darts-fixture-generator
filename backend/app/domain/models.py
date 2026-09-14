@@ -84,6 +84,17 @@ class GenerationConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class RescheduleEntry:
+    """One audit entry recording a manual move of a fixture from one date to another."""
+
+    from_date: date
+    to_date: date
+    reason: str | None = None
+    actor: str | None = None
+    changed_at: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class Fixture:
     id: str
     division_id: str
@@ -95,7 +106,7 @@ class Fixture:
     original_scheduled_date: date | None = None
     locked: bool = False
     manual: bool = False
-    rescheduling_history: tuple[str, ...] = ()
+    rescheduling_history: tuple[RescheduleEntry, ...] = ()
 
     @classmethod
     def create(

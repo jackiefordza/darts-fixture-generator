@@ -40,52 +40,68 @@ class SQLiteRepository:
             connection.close()
 
     def migrate(self) -> None:
-        """Apply schema version 1. Future migrations append versions to this method."""
+        """Apply pending schema versions in order. Each version is applied at most once;
+        deployed versions are never altered in place, only added to."""
         with self.connection() as conn:
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY)"
             )
-            if conn.execute("SELECT 1 FROM schema_migrations WHERE version = 1").fetchone():
-                return
-            conn.executescript(
-                """
-                CREATE TABLE seasons (
-                  id TEXT PRIMARY KEY, league_name TEXT NOT NULL, name TEXT NOT NULL,
-                  first_fixture_date TEXT NOT NULL, cadence_days INTEGER NOT NULL DEFAULT 7,
-                  generation_seed INTEGER, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-                );
-                CREATE TABLE divisions (
-                  id TEXT PRIMARY KEY, season_id TEXT NOT NULL REFERENCES seasons(id) ON DELETE RESTRICT,
-                  name TEXT NOT NULL, position INTEGER NOT NULL, UNIQUE(season_id, position)
-                );
-                CREATE TABLE venues (
-                  id TEXT PRIMARY KEY, season_id TEXT NOT NULL REFERENCES seasons(id) ON DELETE RESTRICT,
-                  name TEXT NOT NULL, board_capacity INTEGER NOT NULL CHECK(board_capacity > 0)
-                );
-                CREATE TABLE teams (
-                  id TEXT PRIMARY KEY, division_id TEXT NOT NULL REFERENCES divisions(id) ON DELETE RESTRICT,
-                  name TEXT NOT NULL, position INTEGER NOT NULL, venue_id TEXT NOT NULL REFERENCES venues(id) ON DELETE RESTRICT,
-                  UNIQUE(division_id, position)
-                );
-                CREATE TABLE calendar_events (
-                  id TEXT PRIMARY KEY, season_id TEXT NOT NULL REFERENCES seasons(id) ON DELETE RESTRICT,
-                  name TEXT NOT NULL, start_date TEXT NOT NULL, end_date TEXT, event_type TEXT NOT NULL,
-                  blocks_initial_generation INTEGER NOT NULL, appears_on_poster INTEGER NOT NULL
-                );
-                CREATE TABLE fixtures (
-                  id TEXT PRIMARY KEY, season_id TEXT NOT NULL REFERENCES seasons(id) ON DELETE RESTRICT,
-                  division_id TEXT NOT NULL REFERENCES divisions(id) ON DELETE RESTRICT,
-                  week_number INTEGER NOT NULL, scheduled_date TEXT NOT NULL,
-                  home_team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE RESTRICT,
-                  away_team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE RESTRICT,
-                  playing_venue_id TEXT NOT NULL REFERENCES venues(id) ON DELETE RESTRICT,
-                  original_scheduled_date TEXT, locked INTEGER NOT NULL DEFAULT 0,
-                  manual INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'scheduled'
-                );
-                CREATE INDEX fixtures_season_filter ON fixtures(season_id, division_id, week_number, scheduled_date);
-                INSERT INTO schema_migrations(version) VALUES (1);
-                """
-            )
+            applied = {
+                row["version"] for row in conn.execute("SELECT version FROM schema_migrations")
+            }
+            if 1 not in applied:
+                conn.executescript(
+                    """
+                    CREATE TABLE seasons (
+                      id TEXT PRIMARY KEY, league_name TEXT NOT NULL, name TEXT NOT NULL,
+                      first_fixture_date TEXT NOT NULL, cadence_days INTEGER NOT NULL DEFAULT 7,
+                      generation_seed INTEGER, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+                    );
+                    CREATE TABLE divisions (
+                      id TEXT PRIMARY KEY, season_id TEXT NOT NULL REFERENCES seasons(id) ON DELETE RESTRICT,
+                      name TEXT NOT NULL, position INTEGER NOT NULL, UNIQUE(season_id, position)
+                    );
+                    CREATE TABLE venues (
+                      id TEXT PRIMARY KEY, season_id TEXT NOT NULL REFERENCES seasons(id) ON DELETE RESTRICT,
+                      name TEXT NOT NULL, board_capacity INTEGER NOT NULL CHECK(board_capacity > 0)
+                    );
+                    CREATE TABLE teams (
+                      id TEXT PRIMARY KEY, division_id TEXT NOT NULL REFERENCES divisions(id) ON DELETE RESTRICT,
+                      name TEXT NOT NULL, position INTEGER NOT NULL, venue_id TEXT NOT NULL REFERENCES venues(id) ON DELETE RESTRICT,
+                      UNIQUE(division_id, position)
+                    );
+                    CREATE TABLE calendar_events (
+                      id TEXT PRIMARY KEY, season_id TEXT NOT NULL REFERENCES seasons(id) ON DELETE RESTRICT,
+                      name TEXT NOT NULL, start_date TEXT NOT NULL, end_date TEXT, event_type TEXT NOT NULL,
+                      blocks_initial_generation INTEGER NOT NULL, appears_on_poster INTEGER NOT NULL
+                    );
+                    CREATE TABLE fixtures (
+                      id TEXT PRIMARY KEY, season_id TEXT NOT NULL REFERENCES seasons(id) ON DELETE RESTRICT,
+                      division_id TEXT NOT NULL REFERENCES divisions(id) ON DELETE RESTRICT,
+                      week_number INTEGER NOT NULL, scheduled_date TEXT NOT NULL,
+                      home_team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE RESTRICT,
+                      away_team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE RESTRICT,
+                      playing_venue_id TEXT NOT NULL REFERENCES venues(id) ON DELETE RESTRICT,
+                      original_scheduled_date TEXT, locked INTEGER NOT NULL DEFAULT 0,
+                      manual INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'scheduled'
+                    );
+                    CREATE INDEX fixtures_season_filter ON fixtures(season_id, division_id, week_number, scheduled_date);
+                    INSERT INTO schema_migrations(version) VALUES (1);
+                    """
+                )
+            if 2 not in applied:
+                conn.executescript(
+                    """
+                    CREATE TABLE fixture_reschedules (
+                      id TEXT PRIMARY KEY,
+                      fixture_id TEXT NOT NULL REFERENCES fixtures(id) ON DELETE RESTRICT,
+                      from_date TEXT NOT NULL, to_date TEXT NOT NULL,
+                      reason TEXT, actor TEXT, changed_at TEXT NOT NULL
+                    );
+                    CREATE INDEX fixture_reschedules_fixture ON fixture_reschedules(fixture_id, changed_at);
+                    INSERT INTO schema_migrations(version) VALUES (2);
+                    """
+                )
 
     @staticmethod
     def now() -> str:

@@ -52,7 +52,7 @@ class ScheduleValidator:
                 issues.append(
                     self._issue("unknown_venue", "Fixture references an unknown venue.", fixture)
                 )
-            if any(
+            if not fixture.manual and any(
                 event.blocks_initial_generation and event.includes(fixture.scheduled_date)
                 for event in season.calendar_events
             ):
@@ -128,8 +128,16 @@ class ScheduleValidator:
 
     @staticmethod
     def _check_week_date_alignment(fixtures: tuple[Fixture, ...]) -> list[ValidationIssue]:
+        """Every non-manual fixture in a week must share that week's canonical date.
+
+        A manually rescheduled fixture is explicitly exempt: its week number is retained for
+        standings/audit purposes, but its date is intentionally decoupled from the shared
+        league-week date once it has been postponed.
+        """
         grouped: dict[int, list[Fixture]] = defaultdict(list)
         for fixture in fixtures:
+            if fixture.manual:
+                continue
             grouped[fixture.week_number].append(fixture)
         issues: list[ValidationIssue] = []
         for week, week_fixtures in grouped.items():

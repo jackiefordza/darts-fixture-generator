@@ -60,7 +60,7 @@ class FixtureGenerator:
         for attempt in range(1, config.max_pairing_attempts + 1):
             pairings = [self._pairings.generate(division, random) for division in season.divisions]
             units = self._orientation_units(season.divisions, pairings)
-            orientations = self._orient(units, season, random)
+            orientations = self._orient(units, dates, season, random)
             if orientations is None:
                 continue
             fixtures = self._fixtures_from_orientations(orientations, dates, seed, season)
@@ -92,6 +92,122 @@ class FixtureGenerator:
                 last_diagnostics,
             ),
         )
+
+    def regenerate_unlocked(
+        self,
+        season: Season,
+        existing_fixtures: tuple[Fixture, ...] | list[Fixture],
+        config: GenerationConfig = GenerationConfig(),
+    ) -> GenerationResult:
+        """Recompute only the unlocked fixtures; locked/manual fixtures are preserved exactly.
+
+        The pairing skeleton (which teams meet in which week) is never re-derived: it already
+        satisfies the round-robin/mirror/Bye rules, and a locked fixture pins its own entry in
+        it. Only the home/away orientation of still-fully-unlocked pairings is re-searched,
+        seeded with the fixed fixtures' actual venue usage so shared capacity stays respected.
+        """
+        input_errors = self._validate_input(season, config)
+        seed = config.seed if config.seed is not None else SystemRandom().randrange(2**63)
+        if input_errors:
+            return GenerationResult(
+                success=False,
+                seed=seed,
+                fixtures=(),
+                validation=ValidationResult(),
+                diagnostics=tuple(input_errors),
+            )
+
+        fixed_fixtures, units = self._preserved_and_free_units(existing_fixtures)
+        total_weeks = max(self._rounds_per_half(division) * 2 for division in season.divisions)
+        dates = self._league_dates(season, total_weeks, config)
+        initial_usage = self._usage_from_fixtures(fixed_fixtures)
+
+        random = Random(seed)
+        last_diagnostics = "No capacity-feasible orientation was found for the unlocked fixtures."
+
+        for attempt in range(1, config.max_pairing_attempts + 1):
+            orientations = self._orient(units, dates, season, random, initial_usage=initial_usage)
+            if orientations is None:
+                continue
+            regenerated = self._fixtures_from_orientations(orientations, dates, seed, season)
+            fixtures = tuple(
+                sorted(
+                    (*fixed_fixtures, *regenerated),
+                    key=lambda fixture: (fixture.week_number, fixture.id),
+                )
+            )
+            validation = self._validator.validate(season, fixtures)
+            if validation.is_valid:
+                statistics = GenerationStatistics(
+                    fixture_count=len(fixtures),
+                    weeks_used=total_weeks,
+                    soft_score=self._soft_score(fixtures, config),
+                    pairing_attempts=attempt,
+                )
+                return GenerationResult(
+                    success=True,
+                    seed=seed,
+                    fixtures=fixtures,
+                    validation=validation,
+                    statistics=statistics,
+                )
+            last_diagnostics = "; ".join(issue.message for issue in validation.issues)
+
+        return GenerationResult(
+            success=False,
+            seed=seed,
+            fixtures=(),
+            validation=ValidationResult(),
+            diagnostics=(
+                "Unable to satisfy hard constraints while preserving locked fixtures after "
+                f"{config.max_pairing_attempts} attempts.",
+                last_diagnostics,
+            ),
+        )
+
+    @staticmethod
+    def _preserved_and_free_units(
+        existing_fixtures: tuple[Fixture, ...] | list[Fixture],
+    ) -> tuple[list[Fixture], list[_OrientationUnit]]:
+        """Split fixtures into ones to keep untouched and free pairs to re-orient.
+
+        A unit is only free when *both* of its legs are unlocked; if either leg is locked,
+        the whole pair's orientation is already pinned by the mirror-half rule, so its
+        (still formally unlocked) sibling leg is preserved untouched too, not re-decided.
+        """
+        preserved = [fixture for fixture in existing_fixtures if fixture.locked or fixture.manual]
+        unlocked = [
+            fixture for fixture in existing_fixtures if not (fixture.locked or fixture.manual)
+        ]
+
+        grouped: dict[tuple[str, frozenset[str]], list[Fixture]] = defaultdict(list)
+        for fixture in unlocked:
+            key = (fixture.division_id, frozenset((fixture.home_team_id, fixture.away_team_id)))
+            grouped[key].append(fixture)
+
+        units: list[_OrientationUnit] = []
+        for (division_id, _team_pair), legs in grouped.items():
+            if len(legs) == 2:
+                first, second = sorted(legs, key=lambda fixture: fixture.week_number)
+                units.append(
+                    _OrientationUnit(
+                        division_id,
+                        first.week_number,
+                        second.week_number,
+                        first.home_team_id,
+                        first.away_team_id,
+                    )
+                )
+            else:
+                preserved.extend(legs)
+        return preserved, units
+
+    @staticmethod
+    def _usage_from_fixtures(fixtures: list[Fixture]) -> dict[tuple[date, str], int]:
+        usage: dict[tuple[date, str], int] = defaultdict(int)
+        for fixture in fixtures:
+            usage[(fixture.scheduled_date, fixture.playing_venue_id)] += 1
+        return usage
 
     @staticmethod
     def _rounds_per_half(division: Division) -> int:
@@ -161,13 +277,23 @@ class FixtureGenerator:
 
     @staticmethod
     def _orient(
-        units: list[_OrientationUnit], season: Season, random: Random
+        units: list[_OrientationUnit],
+        dates: dict[int, date],
+        season: Season,
+        random: Random,
+        initial_usage: dict[tuple[date, str], int] | None = None,
     ) -> dict[_OrientationUnit, tuple[str, str]] | None:
+        """Search for a capacity-feasible home/away choice for each unit.
+
+        Usage is keyed by actual date (not week number): a manually moved fixture can occupy
+        a date decoupled from its week, so date is the only key that stays correct once
+        regeneration mixes fixed (locked) and freshly oriented fixtures.
+        """
         capacity = {venue.id: venue.board_capacity for venue in season.venues}
         team_venues = {
             team.id: team.home_venue_id for division in season.divisions for team in division.teams
         }
-        usage: dict[tuple[int, str], int] = defaultdict(int)
+        usage: dict[tuple[date, str], int] = defaultdict(int, initial_usage or {})
         # Units touching constrained venues first reduce backtracking on shared venues.
         ordered = sorted(
             units,
@@ -178,26 +304,27 @@ class FixtureGenerator:
         )
         result: dict[_OrientationUnit, tuple[str, str]] = {}
 
-        def fits(home_id: str, first_week: int, away_id: str, second_week: int) -> bool:
+        def fits(home_id: str, first_date: date, away_id: str, second_date: date) -> bool:
             return (
-                usage[(first_week, team_venues[home_id])] < capacity[team_venues[home_id]]
-                and usage[(second_week, team_venues[away_id])] < capacity[team_venues[away_id]]
+                usage[(first_date, team_venues[home_id])] < capacity[team_venues[home_id]]
+                and usage[(second_date, team_venues[away_id])] < capacity[team_venues[away_id]]
             )
 
         def visit(index: int) -> bool:
             if index == len(ordered):
                 return True
             unit = ordered[index]
+            first_date, second_date = dates[unit.first_week], dates[unit.second_week]
             options = [
                 (unit.first_team_id, unit.second_team_id),
                 (unit.second_team_id, unit.first_team_id),
             ]
             random.shuffle(options)
             for home, away in options:
-                if not fits(home, unit.first_week, away, unit.second_week):
+                if not fits(home, first_date, away, second_date):
                     continue
-                first_key = (unit.first_week, team_venues[home])
-                second_key = (unit.second_week, team_venues[away])
+                first_key = (first_date, team_venues[home])
+                second_key = (second_date, team_venues[away])
                 usage[first_key] += 1
                 usage[second_key] += 1
                 result[unit] = (home, away)
