@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { to: 'calendar', label: 'Calendar' },
   { to: 'schedule', label: 'Schedule' },
   { to: 'validation', label: 'Validation' },
+  { to: 'poster', label: 'Poster Editor' },
 ]
 
 export function AppShell({ season, children }: { season: SeasonDetail; children: ReactNode }) {

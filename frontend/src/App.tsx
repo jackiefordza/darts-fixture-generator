@@ -8,6 +8,7 @@ import { SetupPage } from './features/setup/SetupPage'
 import { CalendarPage } from './features/calendar/CalendarPage'
 import { SchedulePage } from './features/schedule/SchedulePage'
 import { ValidationPage } from './features/validation/ValidationPage'
+import { PosterEditorPage } from './features/poster/PosterEditorPage'
 
 export function App() {
   return (
@@ -21,6 +22,7 @@ export function App() {
           <Route path="calendar" element={<CalendarPage />} />
           <Route path="schedule" element={<SchedulePage />} />
           <Route path="validation" element={<ValidationPage />} />
+          <Route path="poster" element={<PosterEditorPage />} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
