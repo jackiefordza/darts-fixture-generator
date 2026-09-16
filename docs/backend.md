@@ -41,3 +41,29 @@ The file is UTF-8 text with a header row, uses `csv.DictWriter`'s standard quoti
 - `GET /seasons/{season_id}/divisions/{division_id}/fixtures.csv` — exports one division only.
 
 **Validation before export.** Both routes always call `SeasonService.export_csv`, which: loads the complete season, loads the complete stored schedule, and runs `ScheduleValidator` against that complete schedule — never against a stored validity flag, and never against just the requested division. Only if the complete schedule is valid does it then filter fixtures down to the requested division (when one was given) and hand them to the exporter. A division-specific export is therefore a filtered view of an already-validated complete schedule, not an independently generated or validated one. If the complete schedule is invalid, export is blocked (`409`, with a JSON body of `{"message": ..., "issues": [...]}` describing every validation issue) even if the requested single division would look valid in isolation.
+
+## Integration tests (Phase 7)
+
+`tests/test_realistic_season_integration.py` is a dedicated integration-test layer, separate
+from the unit-level tests in the other `tests/*.py` files. It builds one realistic
+four-division season — Division 1 with 8 teams, Divisions 2–4 with 7 teams each (an
+automatic Bye), a shared 2-board venue hosting 3 teams (the "Burnaby Arms" capacity
+constraint), and a Wednesday-night calendar starting 2026-10-14 with a single blocked
+competition date and a consecutive two-week break — and exercises it end-to-end: complete
+generation, the home/away mirror, shared-venue capacity (including a deliberately
+infeasible venue configuration), blocked/consecutive blackout dates, seeded reproducibility,
+manual postponement and conflict rejection, locked-fixture-safe regeneration, persistence
+across a fresh repository/service instance (simulating a process restart), the canonical
+CSV contract, and SQLite migration safety (a clean database and an upgrade of a database
+still at the pre-reschedule-history schema version). All of it is clearly-marked
+test/integration data — neutral names such as "Division 1 Team 1" — not real league
+membership.
+
+Run it on its own with:
+
+```bash
+cd backend
+pytest tests/test_realistic_season_integration.py -v
+```
+
+It also runs as part of the full `pytest` suite; nothing else needs to be configured.
