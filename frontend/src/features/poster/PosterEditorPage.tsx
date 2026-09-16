@@ -93,6 +93,8 @@ function PosterWorkspace({ fixtures }: { fixtures: Fixture[] }) {
     <div className="poster-editor">
       <PosterToolbar
         editor={editor}
+        season={season}
+        fixtures={fixtures}
         onFitToPage={fitToPage}
         onAddImage={() => addImageInputRef.current?.click()}
         onResetAll={() => setConfirmingResetAll(true)}

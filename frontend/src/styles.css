@@ -866,6 +866,17 @@ a {
   margin-left: auto;
 }
 
+.poster-export-controls {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+}
+
+.poster-export-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .poster-zoom-label {
   font-size: 0.8rem;
   color: var(--color-text-muted);

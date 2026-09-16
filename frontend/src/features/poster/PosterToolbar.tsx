@@ -1,20 +1,26 @@
 import { Button } from '../../components/ui/Button'
+import type { Fixture, SeasonDetail } from '../../api/types'
+import { PosterExportControls } from './PosterExportControls'
 import type { PosterEditor } from './usePosterEditor'
 
 const ZOOM_STEPS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2]
 
 export function PosterToolbar({
   editor,
+  season,
+  fixtures,
   onFitToPage,
   onAddImage,
   onResetAll,
 }: {
   editor: PosterEditor
+  season: SeasonDetail
+  fixtures: Fixture[]
   onFitToPage: () => void
   onAddImage: () => void
   onResetAll: () => void
 }) {
-  const { zoom, setZoom, preview, setPreview, canUndo, canRedo, undo, redo } = editor
+  const { layout, zoom, setZoom, preview, setPreview, canUndo, canRedo, undo, redo } = editor
   // Ctrl/Cmd+wheel zoom lands on values between the presets below - without a matching
   // <option>, the browser silently falls back to displaying the first preset instead of
   // the real zoom, so surface the exact current value as a selectable option too.
@@ -66,6 +72,8 @@ export function PosterToolbar({
           {preview ? 'Exit preview' : 'Preview'}
         </Button>
       </div>
+
+      <PosterExportControls layout={layout} season={season} fixtures={fixtures} />
     </div>
   )
 }

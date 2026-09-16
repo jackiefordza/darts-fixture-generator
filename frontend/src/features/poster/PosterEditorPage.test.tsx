@@ -79,6 +79,8 @@ describe('PosterEditorPage', () => {
 
     expect(await screen.findByText('No generated schedule yet')).toBeInTheDocument()
     expect(screen.queryByTestId('poster-page')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Export PDF' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Export PNG' })).not.toBeInTheDocument()
   })
 
   it('shows the validation issues instead of the poster when the schedule is invalid', async () => {
@@ -92,6 +94,9 @@ describe('PosterEditorPage', () => {
     expect(await screen.findByText('Schedule is not currently valid')).toBeInTheDocument()
     expect(screen.getByText('Venue over capacity on 2026-09-16')).toBeInTheDocument()
     expect(screen.queryByTestId('poster-page')).not.toBeInTheDocument()
+    // TEST 8: an invalid schedule must never reach an export-capable poster view.
+    expect(screen.queryByRole('button', { name: 'Export PDF' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Export PNG' })).not.toBeInTheDocument()
   })
 
   it('loads real season data: divisions, team numbers/names, and a fixture grid derived from the schedule', async () => {
@@ -107,6 +112,8 @@ describe('PosterEditorPage', () => {
     expect(within(page).getByText('Bullseyes')).toBeInTheDocument()
     // Aces is team #1 and Bullseyes is team #2 in the division, so the fixture reads "1v2".
     expect(within(page).getByText('1v2')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Export PDF' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Export PNG' })).toBeInTheDocument()
   })
 
   it('fixture grid cells contain no editable controls', async () => {
