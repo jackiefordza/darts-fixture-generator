@@ -47,33 +47,62 @@ export function PosterElementView({
 
   switch (element.type) {
     case 'header': {
-      // The masthead defaults to a solid primary-colour band (white text) rather than an
-      // outlined box - a "use global" background override is absent (null), so only an
-      // explicit custom background/text override should ever change that.
+      // Recreates the previous fixture creator's masthead: a strong dark band (never a
+      // blank rectangle even with no image), a diagonally-clipped photo on the lead edge
+      // when one is supplied, and bottom-anchored right-aligned titles - deliberately
+      // bottom-anchored so they can never grow upward into the league-logo corner (see
+      // `leagueLogoElement` in defaultLayout.ts, which claims the top-right corner).
       const hasCustomBg = element.style.backgroundColor != null
-      const headerBg = hasCustomBg ? resolved.backgroundColor : globalStyle.primaryColor
+      const FALLBACK_DARK = '#14161c'
+      const headerBg = hasCustomBg ? resolved.backgroundColor : FALLBACK_DARK
       const headerText = hasCustomBg ? resolved.textColor : '#ffffff'
-      const headerSubtitle = hasCustomBg ? resolved.textColor : 'rgba(255, 255, 255, 0.85)'
+      const headerSubtitle = hasCustomBg ? resolved.textColor : 'rgba(255, 255, 255, 0.82)'
       return (
         <div
           className="poster-box poster-header"
           style={{ ...boxStyle, background: headerBg, color: headerText, borderStyle: 'solid' }}
         >
-          <div className="poster-header-league">{season.league_name}</div>
-          <div className="poster-header-season" style={{ color: headerSubtitle }}>
-            {season.name}
+          {element.backgroundImage && (
+            <div
+              className="poster-header-image"
+              style={{ backgroundImage: `url(${element.backgroundImage})` }}
+            />
+          )}
+          <div className="poster-header-titles">
+            <div className="poster-header-league">{season.league_name}</div>
+            <div className="poster-header-season" style={{ color: headerSubtitle }}>
+              {season.name}
+            </div>
           </div>
         </div>
       )
     }
 
+    case 'trim': {
+      // Purely decorative brand statement between masthead and content - always the
+      // season's own primary/secondary/accent colours, in from the previous poster's
+      // three-band trim (there is deliberately no per-band colour override; see
+      // TrimElement's doc comment in posterTypes.ts).
+      return (
+        <div className="poster-box poster-trim" style={{ ...boxStyle, borderStyle: 'none', background: 'transparent' }}>
+          <span style={{ background: globalStyle.primaryColor, flex: 5 }} />
+          <span style={{ background: globalStyle.secondaryColor ?? '#ffffff', flex: 2 }} />
+          <span style={{ background: globalStyle.accentColor, flex: 5 }} />
+        </div>
+      )
+    }
+
     case 'divisions':
-      // Purely a layout/selection group for the rows inside it - the rows themselves carry
-      // the visible divider lines, so this frame has no border or fill of its own.
+      // The single bordered frame around every division row, recreating the previous
+      // poster's one-block-with-dividers treatment instead of four separate cards.
       return (
         <div
           className="poster-box poster-divisions-frame"
-          style={{ ...boxStyle, background: 'transparent', borderStyle: 'none' }}
+          style={{
+            ...boxStyle,
+            background: resolved.backgroundColor === 'transparent' ? '#ffffff' : resolved.backgroundColor,
+            borderStyle: 'solid',
+          }}
         />
       )
 
@@ -81,17 +110,17 @@ export function PosterElementView({
       const division = season.divisions.find((candidate) => candidate.id === element.divisionId)
       if (!division) return null
       const divisionIndex = season.divisions.findIndex((candidate) => candidate.id === element.divisionId)
-      const dividerWidth = resolved.borderWidth
+      const isLast = divisionIndex === season.divisions.length - 1
       return (
         <div
           className="poster-box poster-division"
           style={{
             ...boxStyle,
+            background: 'transparent',
             borderStyle: 'solid',
-            borderTopWidth: divisionIndex === 0 ? dividerWidth : 0,
-            borderBottomWidth: dividerWidth,
-            borderLeftWidth: 0,
-            borderRightWidth: 0,
+            borderWidth: 0,
+            borderBottomWidth: isLast ? 0 : 0.35,
+            borderColor: '#d7d9de',
           }}
         >
           <div className="poster-division-header" style={{ borderBottomColor: globalStyle.accentColor }}>
@@ -102,8 +131,8 @@ export function PosterElementView({
           <ol className="poster-division-teams">
             {division.teams.map((team, index) => (
               <li key={team.id}>
-                <span className="poster-team-number" style={{ background: globalStyle.primaryColor }}>
-                  {index + 1}
+                <span className="poster-team-number" style={{ color: globalStyle.primaryColor }}>
+                  {index + 1}.
                 </span>
                 <span className="poster-team-name">{team.name}</span>
               </li>
@@ -117,17 +146,17 @@ export function PosterElementView({
     case 'image': {
       const placeholder = element.type === 'logo' ? (element.role === 'league' ? 'League logo' : 'Sponsor') : 'Image'
       const isEmpty = !element.src
-      // An empty slot reads as a genuine poster logo area (tinted panel, neutral frame) rather
-      // than a dashed "drop a file here" input - "Custom" overrides still take over normally.
-      const placeholderBorder = element.style.borderColor ?? '#c7ccd6'
+      // An empty slot reads as quiet, unobtrusive brand space - a soft tinted panel with no
+      // border at all - rather than an "upload logo here" dropzone; a real sponsor logo,
+      // once supplied, always replaces this placeholder outright ("Custom" overrides too).
       const placeholderBg = element.style.backgroundColor ?? '#f4f5f8'
       return (
         <div
           className="poster-box poster-logo"
           style={{
             ...boxStyle,
-            borderStyle: isEmpty ? 'solid' : 'none',
-            borderColor: isEmpty ? placeholderBorder : resolved.borderColor,
+            borderStyle: 'none',
+            borderColor: resolved.borderColor,
             background: isEmpty ? placeholderBg : resolved.backgroundColor,
           }}
         >
@@ -141,9 +170,12 @@ export function PosterElementView({
     }
 
     case 'fixture-grid': {
+      // Dark header row (matching the masthead's tone, not the configurable brand colour)
+      // recreates the previous poster's fixture matrix, still driven entirely by
+      // `buildFixtureGrid` - every cell is real generated-schedule data, nothing hand-authored.
       const grid = buildFixtureGrid(season, fixtures)
       const fontSize = mmFont(element.fontSize, zoom)
-      const headCellStyle: CSSProperties = { background: globalStyle.primaryColor, color: '#ffffff' }
+      const headCellStyle: CSSProperties = { background: '#14161c', color: '#ffffff' }
       return (
         <div className="poster-box poster-fixture-grid" style={{ ...boxStyle, borderStyle: 'solid', fontSize }}>
           <table className={element.showBorders ? 'poster-grid-table bordered' : 'poster-grid-table'}>
@@ -184,10 +216,13 @@ export function PosterElementView({
     }
 
     case 'competitions': {
+      // Borderless "dotted leader" strip (name ... date), recreating the previous poster's
+      // programme-style competitions list instead of a boxed panel with a title bar - it
+      // stays a compact strip whether it holds many entries or none.
       const items = mergeCompetitions(season.calendar_events, element.entries).filter((item) => item.visible)
       return (
-        <div className="poster-box poster-competitions" style={{ ...boxStyle, borderStyle: 'solid' }}>
-          <div className="poster-section-title" style={{ background: globalStyle.primaryColor, color: '#ffffff' }}>
+        <div className="poster-box poster-competitions" style={{ ...boxStyle, borderStyle: 'none', background: 'transparent' }}>
+          <div className="poster-section-title poster-section-title-plain" style={{ color: globalStyle.primaryColor }}>
             Competitions
           </div>
           {items.length === 0 ? (
@@ -196,8 +231,9 @@ export function PosterElementView({
             <ul className="poster-competitions-list">
               {items.map((item) => (
                 <li key={item.id}>
-                  <strong>{item.title}</strong>
-                  {item.detail && <span className="muted"> — {item.detail}</span>}
+                  <span className="poster-competition-title">{item.title}</span>
+                  <span className="poster-competition-leader" />
+                  <span className="poster-competition-date">{item.detail}</span>
                 </li>
               ))}
             </ul>
@@ -207,16 +243,34 @@ export function PosterElementView({
     }
 
     case 'rules': {
+      // The floating notched label (a same-colour patch over the border) recreates the
+      // previous poster's certificate-style "Rules" tab straddling the box's top edge.
       const rules = [...element.rules].sort((a, b) => a.order - b.order)
+      const rulesBg = resolved.backgroundColor === 'transparent' ? globalStyle.backgroundColor : resolved.backgroundColor
       return (
-        <div className="poster-box poster-rules" style={{ ...boxStyle, borderStyle: 'solid', fontSize: mmFont(element.fontSize, zoom) }}>
-          <div className="poster-section-title" style={{ background: globalStyle.primaryColor, color: '#ffffff' }}>
+        <div
+          className="poster-box poster-rules"
+          style={{
+            ...boxStyle,
+            background: rulesBg,
+            borderStyle: 'solid',
+            fontSize: mmFont(element.fontSize, zoom),
+            // The label below straddles this box's own top border, so this one element
+            // must allow that overflow rather than clip to its own rect (unlike every
+            // other section, which stays clipped to its rect as normal).
+            overflow: 'visible',
+          }}
+        >
+          <div className="poster-section-label-notch" style={{ background: rulesBg, color: globalStyle.textColor }}>
             Rules
           </div>
           <ol className="poster-rules-list" style={{ columnCount: element.columns }}>
             {rules.map((rule, index) => (
               <li key={rule.id}>
-                <span className="poster-rule-number">{index + 1}.</span> {rule.text}
+                <span className="poster-rule-number" style={{ color: globalStyle.accentColor }}>
+                  {index + 1}.
+                </span>{' '}
+                {rule.text}
               </li>
             ))}
           </ol>
