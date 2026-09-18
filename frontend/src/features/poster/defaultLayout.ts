@@ -1,4 +1,5 @@
 import type { SeasonDetail } from '../../api/types'
+import { mergeCompetitions } from './competitionsMerge'
 import {
   PAGE_HEIGHT_MM,
   PAGE_WIDTH_MM,
@@ -217,7 +218,12 @@ export function buildDefaultLayout(season: SeasonDetail): PosterLayout {
   const grid = fixtureGridElement(cursor, fixtureHeight)
   cursor += fixtureHeight + GAP
 
-  const competitionsHeight = 22
+  // Content-aware height: a season with no competitions configured yet gets just
+  // enough room for the heading, not a fixed block of empty space above the rules
+  // box - the reclaimed height flows straight to rules below via `cursor`.
+  const competitionsCount = mergeCompetitions(season.calendar_events, []).length
+  const competitionsRows = Math.ceil(competitionsCount / 2)
+  const competitionsHeight = competitionsCount === 0 ? 13 : Math.min(13 + competitionsRows * 5, 40)
   const competitions = competitionsElement(cursor, competitionsHeight)
   cursor += competitionsHeight + GAP
 

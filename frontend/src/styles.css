@@ -924,6 +924,15 @@ a {
   outline-offset: 1px;
   z-index: 5;
 }
+/* The header and its corner league-logo badge deliberately overlap. Elevating a
+   selected header above the logo (like any other selected element) would put the
+   header's own box back over the logo whenever the header is selected, making the
+   logo unclickable underneath it - so the header alone keeps its natural (lower,
+   DOM-order) stacking instead. Its selection outline and resize handles are
+   unaffected: handles always paint above both (see `.poster-handle`). */
+.poster-element-header.selected {
+  z-index: 0;
+}
 
 .poster-box {
   border-width: 0;
@@ -1096,10 +1105,8 @@ a {
   box-sizing: border-box;
 }
 .poster-division-header {
-  border-bottom-style: solid;
-  border-bottom-width: 0.14em;
-  padding-bottom: 0.12em;
-  margin-bottom: 0.15em;
+  padding-bottom: 0.05em;
+  margin-bottom: 0.2em;
 }
 .poster-division-name {
   font-weight: 800;
@@ -1108,12 +1115,17 @@ a {
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
+/* Four-across, two-row grid - the previous fixture creator's own density. Long real
+   team names are handled by shrinking that one name in place (see `teamNameStyle` in
+   PosterElementView.tsx), not by narrowing to fewer/wider columns. */
 .poster-division-teams {
   margin: 0;
   padding: 0;
   list-style: none;
-  columns: 2;
-  column-gap: 1.3em;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  column-gap: 0.9em;
+  row-gap: 0.15em;
   font-size: 0.82em;
   line-height: 1.5;
 }
@@ -1121,7 +1133,7 @@ a {
   display: flex;
   align-items: baseline;
   gap: 0.35em;
-  break-inside: avoid;
+  min-width: 0;
 }
 .poster-team-number {
   font-weight: 700;
@@ -1135,6 +1147,7 @@ a {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 600;
+  min-width: 0;
 }
 
 .poster-logo {
@@ -1255,6 +1268,7 @@ a {
 }
 .poster-empty-hint {
   font-size: 0.85em;
+  margin: 0;
 }
 /* Certificate-style label straddling the rules box's top border. */
 .poster-section-label-notch {

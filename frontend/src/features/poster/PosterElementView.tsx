@@ -18,6 +18,18 @@ function mmFont(mm: number, zoom: number): string {
  */
 const DEFAULT_BASE_FONT_MM = 3.7
 
+/**
+ * The previous fixture creator's fix for long team names at a dense 4-per-row layout:
+ * shrink the individual name in place rather than truncating it or narrowing the whole
+ * grid to fewer, wider columns. Thresholds match that tool's own values.
+ */
+function teamNameStyle(name: string): CSSProperties {
+  if (name.length > 22) return { fontSize: '75%', letterSpacing: '-0.02em' }
+  if (name.length > 17) return { fontSize: '85%', letterSpacing: '-0.01em' }
+  if (name.length > 13) return { fontSize: '92%' }
+  return {}
+}
+
 export function PosterElementView({
   element,
   season,
@@ -123,7 +135,7 @@ export function PosterElementView({
             borderColor: '#d7d9de',
           }}
         >
-          <div className="poster-division-header" style={{ borderBottomColor: globalStyle.accentColor }}>
+          <div className="poster-division-header">
             <span className="poster-division-name" style={{ color: globalStyle.primaryColor }}>
               {division.name}
             </span>
@@ -134,7 +146,9 @@ export function PosterElementView({
                 <span className="poster-team-number" style={{ color: globalStyle.primaryColor }}>
                   {index + 1}.
                 </span>
-                <span className="poster-team-name">{team.name}</span>
+                <span className="poster-team-name" style={teamNameStyle(team.name)}>
+                  {team.name}
+                </span>
               </li>
             ))}
           </ol>
