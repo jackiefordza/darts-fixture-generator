@@ -173,13 +173,18 @@ class SeasonService:
                 if not venue or venue["season_id"] != season_id:
                     raise NotFoundError("Venue not found in season")
                 conn.execute(
-                    "INSERT INTO teams VALUES (?, ?, ?, ?, ?)",
+                    "INSERT INTO teams VALUES (?, ?, ?, ?, ?, ?)",
                     (
                         entity_id,
                         values["division_id"],
                         values["name"],
                         values["position"],
                         values["venue_id"],
+                        # `number` is fixed at creation to the team's initial position and is
+                        # never exposed as an updatable field (see `update()` below) - it is
+                        # the stable identity that fixtures and the poster's compact grid mean
+                        # by "2" in "2v1", independent of any later display reordering.
+                        values["position"],
                     ),
                 )
                 return self._row(conn, "teams", entity_id)
@@ -203,6 +208,10 @@ class SeasonService:
                 "blocks_initial_generation",
                 "appears_on_poster",
             },
+            # `position` (display order) stays freely editable; `number` (the stable identity
+            # fixtures and the poster reference) is deliberately absent here - a team's number
+            # never changes after creation, by construction of this allow-list, not just by
+            # convention.
             "team": {"name", "position", "venue_id"},
         }[kind]
         updates = {

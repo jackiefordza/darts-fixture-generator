@@ -21,8 +21,8 @@ const season: SeasonDetail = {
       name: 'Premier Division',
       position: 1,
       teams: [
-        { id: 't1', division_id: 'div-a', name: 'Aces', position: 1, venue_id: 'v1' },
-        { id: 't2', division_id: 'div-a', name: 'Bullseyes', position: 2, venue_id: 'v1' },
+        { id: 't1', division_id: 'div-a', name: 'Aces', position: 1, number: 1, venue_id: 'v1' },
+        { id: 't2', division_id: 'div-a', name: 'Bullseyes', position: 2, number: 2, venue_id: 'v1' },
       ],
     },
   ],

@@ -1212,6 +1212,11 @@ a {
 .poster-grid-fixture {
   white-space: nowrap;
 }
+.poster-grid-bye {
+  font-style: italic;
+  opacity: 0.75;
+  font-weight: 400;
+}
 
 .poster-section-title {
   font-weight: 700;

@@ -1,10 +1,23 @@
 import type { Fixture, SeasonDetail } from '../../api/types'
 
-export interface GridCellFixture {
+export interface GridFixtureCell {
+  type: 'fixture'
   id: string
   homeNumber: number
   awayNumber: number
 }
+
+/** A synthetic marker for an odd-sized division's sitting-out team - never a real
+ * `Fixture`, never persisted, never exported. Purely so the compact grid says "BYE"
+ * instead of leaving that team unexplained by simply having one fewer line that week
+ * (the schedule page already labels this explicitly; the poster grid did not). */
+export interface GridByeCell {
+  type: 'bye'
+  id: string
+  teamNumber: number
+}
+
+export type GridCellEntry = GridFixtureCell | GridByeCell
 
 export interface GridWeek {
   week: number
@@ -15,7 +28,7 @@ export interface GridWeek {
 export interface GridRow {
   divisionId: string
   divisionName: string
-  cells: GridCellFixture[][]
+  cells: GridCellEntry[][]
 }
 
 export interface FixtureGridData {
@@ -25,10 +38,16 @@ export interface FixtureGridData {
 
 /**
  * Derives the poster's compact fixture grid purely from the validated schedule -
- * weeks, per-division cells, and home/away team *numbers* (a team's 1-based
- * position within its division, the same numbering scheme already used
- * everywhere else in the season). Nothing here invents or reorders a fixture:
- * it only groups and looks up numbers for whatever `fixtures` already contains.
+ * weeks, per-division cells, and home/away team *numbers*. The number shown is
+ * each team's stable `number` from the backend (fixed at creation, independent
+ * of display-order reordering) - never recomputed from live list order here, so
+ * reordering a division's team list can't silently change what an already-
+ * generated fixture like "2v1" means. Nothing here invents or reorders a
+ * fixture: it only groups and looks up numbers for whatever `fixtures` already
+ * contains, plus a synthetic Bye marker (see `GridByeCell`) for whichever team an
+ * odd-sized division's own fixtures already imply sat out that week - never a
+ * new fixture, and never present for an even-sized division (so an all-8-team
+ * season's grid is completely unaffected).
  */
 export function buildFixtureGrid(season: SeasonDetail, fixtures: Fixture[]): FixtureGridData {
   const weekNumbers = [...new Set(fixtures.map((fixture) => fixture.week_number))].sort((a, b) => a - b)
@@ -52,21 +71,34 @@ export function buildFixtureGrid(season: SeasonDetail, fixtures: Fixture[]): Fix
 
   const numberByTeamId = new Map<string, number>()
   for (const division of season.divisions) {
-    division.teams.forEach((team, index) => numberByTeamId.set(team.id, index + 1))
+    for (const team of division.teams) numberByTeamId.set(team.id, team.number)
   }
 
   const rows: GridRow[] = season.divisions.map((division) => ({
     divisionId: division.id,
     divisionName: division.name,
-    cells: weekNumbers.map((week) =>
-      fixtures
-        .filter((fixture) => fixture.division_id === division.id && fixture.week_number === week)
-        .map((fixture) => ({
-          id: fixture.id,
-          homeNumber: numberByTeamId.get(fixture.home_team_id) ?? 0,
-          awayNumber: numberByTeamId.get(fixture.away_team_id) ?? 0,
-        })),
-    ),
+    cells: weekNumbers.map((week) => {
+      const weekFixtures = fixtures.filter(
+        (fixture) => fixture.division_id === division.id && fixture.week_number === week,
+      )
+      const cell: GridCellEntry[] = weekFixtures.map((fixture) => ({
+        type: 'fixture',
+        id: fixture.id,
+        homeNumber: numberByTeamId.get(fixture.home_team_id) ?? 0,
+        awayNumber: numberByTeamId.get(fixture.away_team_id) ?? 0,
+      }))
+      // Only an odd-sized division can have a Bye, and only for weeks it actually
+      // played (an empty cell for a division that simply has no round that week -
+      // e.g. a smaller division once a larger one's calendar runs on - is not a Bye).
+      if (weekFixtures.length > 0 && division.teams.length % 2 === 1) {
+        const playing = new Set(weekFixtures.flatMap((fixture) => [fixture.home_team_id, fixture.away_team_id]))
+        const byeTeam = division.teams.find((team) => !playing.has(team.id))
+        if (byeTeam) {
+          cell.push({ type: 'bye', id: `bye-${division.id}-${week}-${byeTeam.id}`, teamNumber: byeTeam.number })
+        }
+      }
+      return cell
+    }),
   }))
 
   return { weeks, rows }

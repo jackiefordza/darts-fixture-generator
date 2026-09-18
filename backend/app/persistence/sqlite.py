@@ -102,6 +102,22 @@ class SQLiteRepository:
                     INSERT INTO schema_migrations(version) VALUES (2);
                     """
                 )
+            if 3 not in applied:
+                conn.executescript(
+                    """
+                    -- `number` is the team's stable, display-independent identity (what a
+                    -- generated fixture like "2v1" or the poster's compact grid means by "2").
+                    -- It is assigned once at team creation and never updated afterwards (the
+                    -- API's team-update path deliberately excludes it) - `position` remains
+                    -- free to change for display ordering without altering what any existing
+                    -- fixture reference means. Backfilled from each team's current `position`
+                    -- since that has been the de facto number for every team created so far.
+                    ALTER TABLE teams ADD COLUMN number INTEGER NOT NULL DEFAULT 0;
+                    UPDATE teams SET number = position;
+                    CREATE UNIQUE INDEX teams_division_number ON teams(division_id, number);
+                    INSERT INTO schema_migrations(version) VALUES (3);
+                    """
+                )
 
     @staticmethod
     def now() -> str:

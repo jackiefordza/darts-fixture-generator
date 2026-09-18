@@ -141,10 +141,10 @@ export function PosterElementView({
             </span>
           </div>
           <ol className="poster-division-teams">
-            {division.teams.map((team, index) => (
+            {division.teams.map((team) => (
               <li key={team.id}>
                 <span className="poster-team-number" style={{ color: globalStyle.primaryColor }}>
-                  {index + 1}.
+                  {team.number}.
                 </span>
                 <span className="poster-team-name" style={teamNameStyle(team.name)}>
                   {team.name}
@@ -214,11 +214,17 @@ export function PosterElementView({
                   </th>
                   {row.cells.map((cell, index) => (
                     <td key={index}>
-                      {cell.map((fixture) => (
-                        <div key={fixture.id} className="poster-grid-fixture">
-                          {fixture.homeNumber}v{fixture.awayNumber}
-                        </div>
-                      ))}
+                      {cell.map((entry) =>
+                        entry.type === 'bye' ? (
+                          <div key={entry.id} className="poster-grid-fixture poster-grid-bye">
+                            {entry.teamNumber} BYE
+                          </div>
+                        ) : (
+                          <div key={entry.id} className="poster-grid-fixture">
+                            {entry.homeNumber}v{entry.awayNumber}
+                          </div>
+                        ),
+                      )}
                     </td>
                   ))}
                 </tr>

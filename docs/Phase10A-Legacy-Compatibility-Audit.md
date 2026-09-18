@@ -2,6 +2,15 @@
 
 **Status: read-only audit. No production code, tests, or schema were modified in this phase.**
 
+**Update (Phase 10B):** all three findings below have since been resolved. See
+`docs/Phase10B-Implementation-Notes.md` for the implementation. In summary:
+Team View was added (Section 8/14/16); team numbering was made stable via a
+new immutable `number` column decoupled from the freely-editable `position`
+field (Section 10/18); and the poster's compact fixture grid now labels Bye
+weeks explicitly for odd-sized divisions (Section 4/14/18). The mixed-
+division-size rough edge (Section 8) was intentionally left as documented,
+per Phase 10B's scope.
+
 **Source of the old creator**: the full HTML/CSS/JS source of the previously-used fixture creator, as pasted into this session (the same source already used earlier in this session's poster-rebuild phase and recovered from that turn — no new attachment file was found on disk for this task, so this audit works from that identical, already-fully-read copy). It is treated as executable specification, not a visual reference: every claim about "old behaviour" below is a direct reading of `generateSchedule()`, `assignNumbersGlobally()`, the static `matrix`, `getTeamData()`, and the poster-population code in that file, cross-checked by actually running that file in a real browser earlier in this session.
 
 **Current implementation audited**: `claude/keen-ptolemy-04l3e9` branch, specifically `backend/app/scheduling/pairing.py`, `backend/app/scheduling/generator.py`, `backend/app/validation/validator.py`, `backend/app/domain/models.py`, `backend/app/services/seasons.py`, `backend/app/persistence/sqlite.py`, `backend/app/exporting/csv_exporter.py`, and the frontend's `utils/schedule.ts`, `features/schedule/*`, `features/poster/fixtureGridData.ts`, `features/poster/competitionsMerge.ts`.
@@ -273,6 +282,7 @@ All read-only; nothing modified.
 ## 16. Confirmed regressions
 
 - **No dedicated per-team schedule view or export.** Old's Team View tab (pick a team, see every fixture in personal chronological order with home/away/venue and an explicit BYE WEEK line, competitions optionally included) has no current equivalent anywhere in the frontend or CSV export. This is the only finding in this audit that clearly represents *lost, real-world-used functionality* rather than a deliberate architectural trade-off.
+  **Resolved in Phase 10B**: added `frontend/src/features/team-view/TeamViewPage.tsx`, reusing the existing schedule fetch, `computeByeTeams`, and `FixtureDetailModal` — no new backend endpoint, no separate dataset. See `docs/Phase10B-Implementation-Notes.md` §1.
 
 Nothing else found rises to the level of "regression" — every other difference is either a preserved invariant (implemented differently) or a deliberate, reasoned improvement.
 
@@ -294,10 +304,13 @@ Nothing else found rises to the level of "regression" — every other difference
 
 ## 18. Open product decisions
 
-1. **Should the poster's compact fixture-grid team numbers be pinned at generation time** (e.g. stored per-fixture or per-generation-run) **instead of recomputed live from each team's current `position`?** Today, reordering teams in Setup after generating (or printing/distributing) a schedule silently changes what the grid displays for unchanged fixtures. (Section 10)
-2. **What should happen, if anything, when divisions have unequal sizes and the calendar's later weeks belong only to the largest division?** Today a smaller division simply has no fixtures in those weeks — correct and non-crashing, but nothing currently explains this to a user looking at, say, "week 13" for a division that stopped at week 10. Only matters if a future season is configured with unequal division sizes; the real 2026/27 season (uniform 4×8) never hits this. (Section 8)
-3. **Should the poster's compact fixture grid explicitly mark a bye week** (e.g. a "BYE" cell) for odd-sized divisions, matching the schedule page's explicit "Team — Bye" row? Minor, and irrelevant to the real season today (all divisions are 8 teams), but would matter the moment any division has an odd team count. (Section 4, Section 14)
-4. **Is a dedicated per-team schedule view/export worth adding**, and if so, does it belong on the existing Schedule page (a team filter alongside division/week/date) or as a new page/tab, and should CSV export gain a per-team option alongside season/division? (Section 16)
+1. ~~Should the poster's compact fixture-grid team numbers be pinned at generation time...~~
+   **Resolved in Phase 10B**: added an immutable `teams.number` column, set once at creation and excluded from the team-update allow-list, so `position` can be freely reordered for display without ever changing what an existing fixture's number means. See `docs/Phase10B-Implementation-Notes.md` §2.
+2. **What should happen, if anything, when divisions have unequal sizes and the calendar's later weeks belong only to the largest division?** Today a smaller division simply has no fixtures in those weeks — correct and non-crashing, but nothing currently explains this to a user looking at, say, "week 13" for a division that stopped at week 10. Only matters if a future season is configured with unequal division sizes; the real 2026/27 season (uniform 4×8) never hits this. (Section 8) **Left open** — out of Phase 10B's scope.
+3. ~~Should the poster's compact fixture grid explicitly mark a bye week...~~
+   **Resolved in Phase 10B**: odd-sized divisions now show an explicit, rotating "`N` BYE" cell; even-sized divisions (including the real season's) are provably unaffected. See `docs/Phase10B-Implementation-Notes.md` §3.
+4. ~~Is a dedicated per-team schedule view/export worth adding...~~
+   **Resolved in Phase 10B**: added as a new page (Team View), not a Schedule-page filter; CSV export was not extended with a per-team option (not requested). See `docs/Phase10B-Implementation-Notes.md` §1.
 
 ---
 
