@@ -132,6 +132,8 @@ The editor supports editable league name, season title, colours, fonts, backgrou
 
 Multiple templates can be saved and duplicated. A season can select an existing template or a blank/default one. Template duplication creates a modifiable copy without altering its original, and templates contain design data only—not fixtures, teams, dates, or other season-specific content.
 
+**Implementation status (as of the Phase 10 real-league acceptance pass):** the persistent, backend-backed template library described above is not yet implemented. Today `PosterLayout` persists only in the browser's `localStorage`, keyed per season (`frontend/src/features/poster/posterStorage.ts`); there is no `poster_templates` table, no save-as-template/apply-template API, and no cross-season or cross-browser reuse. Each season's poster starts from `buildDefaultLayout` and is edited independently. Treat "select a poster template" as a future step, not a current one, until this is built.
+
 ## Reproducibility and audit
 
 Each Generation Run captures its ID/timestamps, exact input/configuration snapshot, pairing and scheduling algorithm versions, solver name/version/parameters, random seed, scope of eligible dates/divisions/unlocked fixtures, status, objective/preference diagnostics, and resulting fixture changes. This makes a result reproducible, explainable, and comparable after later software changes.
