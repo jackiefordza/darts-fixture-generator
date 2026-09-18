@@ -21,8 +21,8 @@ const season: SeasonDetail = {
       name: 'Premier Division',
       position: 1,
       teams: [
-        { id: 't1', division_id: 'div-a', name: 'Aces', position: 1, venue_id: 'v1' },
-        { id: 't2', division_id: 'div-a', name: 'Bullseyes', position: 2, venue_id: 'v1' },
+        { id: 't1', division_id: 'div-a', name: 'Aces', position: 1, number: 1, venue_id: 'v1' },
+        { id: 't2', division_id: 'div-a', name: 'Bullseyes', position: 2, number: 2, venue_id: 'v1' },
       ],
     },
   ],
@@ -48,12 +48,13 @@ const fixtures: Fixture[] = [
 ]
 
 // With this season/fixtures the default layout places (all in mm, at zoom 1):
-//   header:     x:12  y:12  w:273 h:40
-//   division:   x:12  y:56  w:273 h:115   (only one division, so it fills the whole row)
-//   league logo:x:249 y:16  w:32  h:32    (header's right edge - deliberately overlapping)
-//   fixture grid: x:12 y:175 w:273 h:95
-//   competitions: x:12 y:274 w:273 h:40
-//   rules:      x:12  y:318 w:273 h:90
+//   header:     x:12    y:12    w:273 h:52
+//   trim:       x:12    y:64    w:273 h:3.5
+//   division:   x:12    y:71.5  w:273 h:120   (only one division, so it fills the whole row)
+//   league logo:x:266.28 y:17   w:18.72 h:18.72 (header's top-right corner - deliberately overlapping)
+//   fixture grid: x:12  y:195.5 w:273 h:105
+//   competitions: x:12  y:304.5 w:273 h:22
+//   rules:      x:12    y:330.5 w:273 h:77.5
 
 function Harness() {
   const editor = usePosterEditor(season)
@@ -98,15 +99,15 @@ describe('PosterCanvas', () => {
     const division = screen.getByTestId(/poster-element-division-/)
     const page = getPage()
 
-    // The division is 273mm wide on a 297mm page (12mm margin each side), so this +3mm/+4mm
-    // move stays well clear of the page-edge clamp; both landing points (15, 60) are exact
+    // The division is 273mm wide on a 297mm page (12mm margin each side), so this +3mm/+3.5mm
+    // move stays well clear of the page-edge clamp; both landing points (15, 75) are exact
     // 5mm grid lines too, so the result is deterministic regardless of snapping.
     fireEvent.pointerDown(division, { ...pointAtMm(50, 100), pointerId: 2 })
-    fireEvent.pointerMove(page, { ...pointAtMm(53, 104), pointerId: 2 })
-    fireEvent.pointerUp(page, { ...pointAtMm(53, 104), pointerId: 2 })
+    fireEvent.pointerMove(page, { ...pointAtMm(53, 103.5), pointerId: 2 })
+    fireEvent.pointerUp(page, { ...pointAtMm(53, 103.5), pointerId: 2 })
 
     expect(Number.parseFloat(division.style.left)).toBeCloseTo(mmToPx(15, 1), 1)
-    expect(Number.parseFloat(division.style.top)).toBeCloseTo(mmToPx(60, 1), 1)
+    expect(Number.parseFloat(division.style.top)).toBeCloseTo(mmToPx(75, 1), 1)
   })
 
   it("dragging a resize handle changes an element's dimensions", () => {
@@ -132,8 +133,8 @@ describe('PosterCanvas', () => {
   it('cycles through overlapping elements on repeated clicks at the same point', () => {
     render(<Harness />)
     const page = getPage()
-    // (260, 30) is inside both the header band and the league logo that sits within it.
-    const point = { ...pointAtMm(260, 30), pointerId: 5 }
+    // (275, 25) is inside both the header band and the league logo that sits within it.
+    const point = { ...pointAtMm(275, 25), pointerId: 5 }
 
     fireEvent.pointerDown(page, point)
     const first = document.querySelector('.poster-element.selected')?.getAttribute('data-testid')

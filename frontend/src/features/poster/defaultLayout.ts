@@ -1,4 +1,5 @@
 import type { SeasonDetail } from '../../api/types'
+import { mergeCompetitions } from './competitionsMerge'
 import {
   PAGE_HEIGHT_MM,
   PAGE_WIDTH_MM,
@@ -12,20 +13,23 @@ import {
   type PosterElement,
   type PosterLayout,
   type RulesElement,
+  type TrimElement,
 } from './posterTypes'
 
 const MARGIN = 12
 const CONTENT_WIDTH = PAGE_WIDTH_MM - MARGIN * 2
+const GAP = 4
 
 export const DEFAULT_GLOBAL_STYLE: GlobalStyle = {
   backgroundColor: '#ffffff',
   primaryColor: '#0b3d91',
+  secondaryColor: '#ffffff',
   accentColor: '#c8102e',
   textColor: '#111318',
   fontFamily: "'Public Sans', -apple-system, BlinkMacSystemFont, sans-serif",
   baseFontSize: 4,
-  borderColor: '#0b3d91',
-  borderWidth: 0.4,
+  borderColor: '#111318',
+  borderWidth: 0.5,
   spacing: 3,
 }
 
@@ -47,25 +51,40 @@ function headerElement(): HeaderElement {
     id: nextId('header'),
     type: 'header',
     name: 'Header',
-    rect: { x: MARGIN, y: MARGIN, width: CONTENT_WIDTH, height: 40 },
+    rect: { x: MARGIN, y: MARGIN, width: CONTENT_WIDTH, height: 52 },
+    visible: true,
+    removable: false,
+    backgroundImage: null,
+    style: {},
+  }
+}
+
+/** The brand trim sits flush beneath the header, full width, with no gap - it reads as
+ * the header's own edge rather than a separate floating bar. */
+function trimElement(header: HeaderElement): TrimElement {
+  return {
+    id: nextId('trim'),
+    type: 'trim',
+    name: 'Colour trim',
+    rect: { x: header.rect.x, y: header.rect.y + header.rect.height, width: header.rect.width, height: 3.5 },
     visible: true,
     removable: false,
     style: {},
   }
 }
 
-/** Sits in the header's right-hand corner, mirroring the division sponsor logos, so it
- * never overlaps the league name/season title text that starts at the header's left edge. */
+/** Sits in the header's top-right corner. The title/season text block is bottom-anchored
+ * (see `.poster-header-titles`) specifically so it never grows upward into this corner. */
 function leagueLogoElement(header: HeaderElement): LogoElement {
-  const size = header.rect.height - 8
+  const size = header.rect.height * 0.36
   return {
     id: nextId('logo'),
     type: 'logo',
     role: 'league',
     name: 'League logo',
     rect: {
-      x: header.rect.x + header.rect.width - size - 4,
-      y: header.rect.y + (header.rect.height - size) / 2,
+      x: header.rect.x + header.rect.width - size - 6,
+      y: header.rect.y + 5,
       width: size,
       height: size,
     },
@@ -177,28 +196,36 @@ function rulesElement(top: number, height: number): RulesElement {
 }
 
 /**
- * Builds the default poster layout for a season: header, divisions, fixture grid,
- * competitions, then rules, stacked top to bottom in the reference poster's order.
- * Purely structural - it never reads fixtures, so it's safe to call before a
- * schedule has been generated.
+ * Builds the default poster layout for a season: dark diagonal-clip header, brand
+ * trim, bordered division block, fixture matrix, competitions strip, then rules -
+ * recreating the previous fixture creator's proven composition (see
+ * docs/architecture.md) as this application's default rather than a generic stack
+ * of equal-weight boxes. Purely structural - it never reads fixtures, so it's safe
+ * to call before a schedule has been generated.
  */
 export function buildDefaultLayout(season: SeasonDetail): PosterLayout {
   const header = headerElement()
+  const trim = trimElement(header)
   const leagueLogo = leagueLogoElement(header)
 
-  let cursor = header.rect.y + header.rect.height + 4
-  const divisionsHeight = 115
+  let cursor = trim.rect.y + trim.rect.height + GAP
+  const divisionsHeight = 120
   const divisions = divisionsContainer(season.divisions.length, cursor, divisionsHeight)
   const { rows, logos } = divisionRows(season, divisions.rect)
-  cursor += divisionsHeight + 4
+  cursor += divisionsHeight + GAP
 
-  const fixtureHeight = 95
+  const fixtureHeight = 105
   const grid = fixtureGridElement(cursor, fixtureHeight)
-  cursor += fixtureHeight + 4
+  cursor += fixtureHeight + GAP
 
-  const competitionsHeight = 40
+  // Content-aware height: a season with no competitions configured yet gets just
+  // enough room for the heading, not a fixed block of empty space above the rules
+  // box - the reclaimed height flows straight to rules below via `cursor`.
+  const competitionsCount = mergeCompetitions(season.calendar_events, []).length
+  const competitionsRows = Math.ceil(competitionsCount / 2)
+  const competitionsHeight = competitionsCount === 0 ? 13 : Math.min(13 + competitionsRows * 5, 40)
   const competitions = competitionsElement(cursor, competitionsHeight)
-  cursor += competitionsHeight + 4
+  cursor += competitionsHeight + GAP
 
   const rulesHeight = PAGE_HEIGHT_MM - MARGIN - cursor
   const rules = rulesElement(cursor, rulesHeight)
@@ -208,7 +235,7 @@ export function buildDefaultLayout(season: SeasonDetail): PosterLayout {
     pageWidth: PAGE_WIDTH_MM,
     pageHeight: PAGE_HEIGHT_MM,
     globalStyle: DEFAULT_GLOBAL_STYLE,
-    elements: [header, leagueLogo, divisions, ...rows, ...logos, grid, competitions, rules],
+    elements: [header, trim, leagueLogo, divisions, ...rows, ...logos, grid, competitions, rules],
   }
 }
 

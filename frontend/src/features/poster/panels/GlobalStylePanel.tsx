@@ -35,6 +35,14 @@ export function GlobalStylePanel({
         <input type="color" value={style.primaryColor} onChange={(event) => onChange({ primaryColor: event.target.value })} />
       </label>
       <label className="field">
+        <span>Secondary colour</span>
+        <input
+          type="color"
+          value={style.secondaryColor ?? '#ffffff'}
+          onChange={(event) => onChange({ secondaryColor: event.target.value })}
+        />
+      </label>
+      <label className="field">
         <span>Accent colour</span>
         <input type="color" value={style.accentColor} onChange={(event) => onChange({ accentColor: event.target.value })} />
       </label>

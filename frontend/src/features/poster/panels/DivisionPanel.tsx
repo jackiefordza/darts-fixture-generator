@@ -88,8 +88,8 @@ export function DivisionPanel({
       </p>
 
       <ol className="poster-team-edit-list">
-        {division.teams.map((team, index) => (
-          <TeamNameRow key={team.id} teamId={team.id} name={team.name} number={index + 1} onSaved={onSeasonChanged} />
+        {division.teams.map((team) => (
+          <TeamNameRow key={team.id} teamId={team.id} name={team.name} number={team.number} onSaved={onSeasonChanged} />
         ))}
       </ol>
 

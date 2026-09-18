@@ -924,6 +924,15 @@ a {
   outline-offset: 1px;
   z-index: 5;
 }
+/* The header and its corner league-logo badge deliberately overlap. Elevating a
+   selected header above the logo (like any other selected element) would put the
+   header's own box back over the logo whenever the header is selected, making the
+   logo unclickable underneath it - so the header alone keeps its natural (lower,
+   DOM-order) stacking instead. Its selection outline and resize handles are
+   unaffected: handles always paint above both (see `.poster-handle`). */
+.poster-element-header.selected {
+  z-index: 0;
+}
 
 .poster-box {
   border-width: 0;
@@ -1038,22 +1047,50 @@ a {
 /* ---------- Poster content rendering ---------- */
 
 .poster-header {
+  position: relative;
+  overflow: hidden;
+}
+.poster-header-image {
+  position: absolute;
+  inset: 0;
+  width: 46%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  clip-path: polygon(0 0, 100% 0, 78% 100%, 0 100%);
+}
+.poster-header-titles {
+  position: relative;
+  z-index: 1;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding: 0.5em 0.8em;
-  gap: 0.15em;
+  justify-content: flex-end;
+  align-items: flex-end;
+  text-align: right;
+  padding: 0.5em 0.9em 0.55em;
+  gap: 0.18em;
 }
 .poster-header-league {
   font-weight: 800;
-  font-size: 1.6em;
-  line-height: 1.15;
+  font-size: 1.7em;
+  line-height: 1.12;
   letter-spacing: 0.01em;
 }
 .poster-header-season {
   font-size: 1em;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
+}
+
+/* The three-band brand trim beneath the masthead. */
+.poster-trim {
+  display: flex;
+  align-items: stretch;
+}
+.poster-trim span {
+  display: block;
+  height: 100%;
 }
 
 .poster-divisions-frame {
@@ -1063,15 +1100,13 @@ a {
 .poster-division {
   display: flex;
   flex-direction: column;
-  padding: 0.35em 0.45em 0.3em;
+  padding: 0.35em 0.55em 0.3em;
   gap: 0.15em;
   box-sizing: border-box;
 }
 .poster-division-header {
-  border-bottom-style: solid;
-  border-bottom-width: 0.14em;
-  padding-bottom: 0.12em;
-  margin-bottom: 0.15em;
+  padding-bottom: 0.05em;
+  margin-bottom: 0.2em;
 }
 .poster-division-name {
   font-weight: 800;
@@ -1080,37 +1115,39 @@ a {
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
+/* Four-across, two-row grid - the previous fixture creator's own density. Long real
+   team names are handled by shrinking that one name in place (see `teamNameStyle` in
+   PosterElementView.tsx), not by narrowing to fewer/wider columns. */
 .poster-division-teams {
   margin: 0;
   padding: 0;
   list-style: none;
-  columns: 2;
-  column-gap: 1.1em;
-  font-size: 0.78em;
-  line-height: 1.45;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  column-gap: 0.9em;
+  row-gap: 0.15em;
+  font-size: 0.82em;
+  line-height: 1.5;
 }
 .poster-division-teams li {
   display: flex;
-  align-items: center;
-  gap: 0.4em;
-  break-inside: avoid;
+  align-items: baseline;
+  gap: 0.35em;
+  min-width: 0;
 }
 .poster-team-number {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.5em;
-  height: 1.5em;
-  border-radius: 0.3em;
-  color: #fff;
   font-weight: 700;
   font-size: 0.85em;
   flex-shrink: 0;
+  min-width: 1.3em;
+  text-align: right;
 }
 .poster-team-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 600;
+  min-width: 0;
 }
 
 .poster-logo {
@@ -1175,6 +1212,11 @@ a {
 .poster-grid-fixture {
   white-space: nowrap;
 }
+.poster-grid-bye {
+  font-style: italic;
+  opacity: 0.75;
+  font-weight: 400;
+}
 
 .poster-section-title {
   font-weight: 700;
@@ -1184,20 +1226,65 @@ a {
   margin: -0.3em -0.5em 0.4em;
   padding: 0.3em 0.5em;
 }
+/* Competitions heading sits directly on the page - no title-bar background. */
+.poster-section-title-plain {
+  margin: 0 0 0.3em;
+  padding: 0;
+  font-size: 1.05em;
+}
 
-.poster-competitions,
+.poster-competitions {
+  padding: 0.1em 0.3em;
+  overflow: auto;
+}
 .poster-rules {
   padding: 0.3em 0.5em;
   overflow: auto;
+  position: relative;
 }
+/* "Programme" style dotted-leader row: Name ..................... Date */
 .poster-competitions-list {
   margin: 0;
-  padding-left: 1.2em;
+  padding: 0;
+  list-style: none;
+  columns: 2;
+  column-gap: 2em;
   font-size: 0.85em;
-  line-height: 1.5;
+  line-height: 1.6;
+}
+.poster-competitions-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
+  break-inside: avoid;
+}
+.poster-competition-title {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.poster-competition-leader {
+  flex: 1;
+  border-bottom: 1.5px dotted #9aa0ab;
+  margin-bottom: 0.2em;
+}
+.poster-competition-date {
+  font-weight: 500;
+  white-space: nowrap;
 }
 .poster-empty-hint {
   font-size: 0.85em;
+  margin: 0;
+}
+/* Certificate-style label straddling the rules box's top border. */
+.poster-section-label-notch {
+  position: absolute;
+  top: -0.65em;
+  left: 0.7em;
+  font-weight: 800;
+  font-size: 0.85em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0 0.4em;
 }
 .poster-rules-list {
   margin: 0;
