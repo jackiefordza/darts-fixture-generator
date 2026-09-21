@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: 'setup', label: 'Season Setup' },
   { to: 'calendar', label: 'Calendar' },
   { to: 'schedule', label: 'Schedule' },
+  { to: 'team-view', label: 'Team View' },
   { to: 'validation', label: 'Validation' },
   { to: 'poster', label: 'Poster Editor' },
 ]

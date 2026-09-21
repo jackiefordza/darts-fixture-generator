@@ -19,8 +19,8 @@ const season: SeasonDetail = {
       name: 'Division 1',
       position: 1,
       teams: [
-        { id: 't1', division_id: 'div-1', name: 'Team 1', position: 1, venue_id: 'v1' },
-        { id: 't2', division_id: 'div-1', name: 'Team 2', position: 2, venue_id: 'v1' },
+        { id: 't1', division_id: 'div-1', name: 'Team 1', position: 1, number: 1, venue_id: 'v1' },
+        { id: 't2', division_id: 'div-1', name: 'Team 2', position: 2, number: 2, venue_id: 'v1' },
       ],
     },
   ],

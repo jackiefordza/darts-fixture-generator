@@ -34,8 +34,8 @@ const season: SeasonDetail = {
       name: 'Premier Division',
       position: 1,
       teams: [
-        { id: 'team-a1', division_id: 'div-a', name: 'Aces', position: 1, venue_id: 'venue-1' },
-        { id: 'team-a2', division_id: 'div-a', name: 'Bullseyes', position: 2, venue_id: 'venue-1' },
+        { id: 'team-a1', division_id: 'div-a', name: 'Aces', position: 1, number: 1, venue_id: 'venue-1' },
+        { id: 'team-a2', division_id: 'div-a', name: 'Bullseyes', position: 2, number: 2, venue_id: 'venue-1' },
       ],
     },
     {
@@ -44,8 +44,8 @@ const season: SeasonDetail = {
       name: 'Division One',
       position: 2,
       teams: [
-        { id: 'team-b1', division_id: 'div-b', name: 'Wildcats', position: 1, venue_id: 'venue-1' },
-        { id: 'team-b2', division_id: 'div-b', name: 'Sharpshooters', position: 2, venue_id: 'venue-1' },
+        { id: 'team-b1', division_id: 'div-b', name: 'Wildcats', position: 1, number: 1, venue_id: 'venue-1' },
+        { id: 'team-b2', division_id: 'div-b', name: 'Sharpshooters', position: 2, number: 2, venue_id: 'venue-1' },
       ],
     },
   ],

@@ -24,8 +24,8 @@ const season: SeasonDetail = {
     name: `Division ${n}`,
     position: n,
     teams: [
-      { id: `d${n}t1`, division_id: `div-${n}`, name: `Division ${n} Team 1`, position: 1, venue_id: 'v1' },
-      { id: `d${n}t2`, division_id: `div-${n}`, name: `Division ${n} Team 2`, position: 2, venue_id: 'v1' },
+      { id: `d${n}t1`, division_id: `div-${n}`, name: `Division ${n} Team 1`, position: 1, number: 1, venue_id: 'v1' },
+      { id: `d${n}t2`, division_id: `div-${n}`, name: `Division ${n} Team 2`, position: 2, number: 2, venue_id: 'v1' },
     ],
   })),
   venues: [{ id: 'v1', season_id: 'season-1', name: 'The Anchor', board_capacity: 4 }],

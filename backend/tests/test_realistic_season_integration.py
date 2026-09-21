@@ -706,6 +706,127 @@ def test_postponed_fixture_exports_its_current_date_not_original(app_client) -> 
 
 
 # ---------------------------------------------------------------------------
+# TEST GROUP 11 - stable team numbering survives display reordering
+#
+# `position` is the team's freely-editable display order; `number` (added in
+# migration 3) is the separate, immutable identity a generated fixture like
+# "2v1" or the poster's compact grid actually means by "2". The team-update
+# endpoint's allow-list deliberately excludes `number`, so this is enforced by
+# the API surface itself, not just by convention - these tests confirm that
+# end to end: generate, reorder for display, and check nothing that depends on
+# team identity moved.
+#
+# Note: `PATCH /teams/{id}` currently requires the full `TeamInput` payload
+# (division_id, name, position, venue_id) even though `SeasonService.update`
+# only applies an allow-listed subset - a pre-existing inconsistency in the
+# team/division/venue/event update routes, unrelated to this fix, so these
+# tests send the full payload rather than widen scope to fix it (see
+# docs/Phase10B-Implementation-Notes.md).
+# ---------------------------------------------------------------------------
+
+
+def test_reordering_the_displayed_team_list_does_not_change_team_numbers(app_client) -> None:
+    client, _ = app_client
+    season = build_realistic_season_via_client(client)
+    client.post(f"/seasons/{season['season_id']}/generate", params={"seed": 67890})
+
+    division_id = season["divisions"][0]["id"]
+    season_before = client.get(f"/seasons/{season['season_id']}").json()
+    division_before = next(d for d in season_before["divisions"] if d["id"] == division_id)
+    numbers_before = {team["id"]: team["number"] for team in division_before["teams"]}
+    positions_before = {team["id"]: team["position"] for team in division_before["teams"]}
+    fixtures_before = _fixtures(client, season["season_id"])
+
+    # A genuine "reorder the displayed team list" action: swap two teams' display
+    # positions (e.g. an admin re-sorting the setup screen), touching only `position`.
+    team_a, team_b = division_before["teams"][0], division_before["teams"][1]
+
+    def set_position(team: dict, new_position: int):
+        return client.patch(
+            f"/teams/{team['id']}",
+            json={
+                "division_id": team["division_id"],
+                "name": team["name"],
+                "position": new_position,
+                "venue_id": team["venue_id"],
+            },
+        )
+
+    # `UNIQUE(division_id, position)` means a direct swap collides mid-flight, so free up
+    # team_a's slot via a temporary out-of-range position first, exactly as a real reorder
+    # UI would need to.
+    resp_temp = set_position(team_a, 9999)
+    resp_b = set_position(team_b, team_a["position"])
+    resp_a = set_position(team_a, team_b["position"])
+    assert resp_temp.status_code == 200
+    assert resp_b.status_code == 200
+    assert resp_a.status_code == 200
+
+    season_after = client.get(f"/seasons/{season['season_id']}").json()
+    division_after = next(d for d in season_after["divisions"] if d["id"] == division_id)
+    numbers_after = {team["id"]: team["number"] for team in division_after["teams"]}
+    positions_after = {team["id"]: team["position"] for team in division_after["teams"]}
+
+    # The reorder genuinely happened...
+    assert positions_after[team_a["id"]] == team_b["position"]
+    assert positions_after[team_b["id"]] == team_a["position"]
+    assert positions_after != positions_before
+    # ...but every team's stable number is completely untouched by it.
+    assert numbers_after == numbers_before
+
+    # Fixtures already generated reference teams by ID, never by a live-computed
+    # number, so they are byte-for-byte identical after a pure display reorder.
+    fixtures_after = _fixtures(client, season["season_id"])
+    assert fixtures_after == fixtures_before
+
+    # The poster's compact grid derives its numbers the same way this test does
+    # (team.number, looked up by ID) - confirm the mapping used for that grid is
+    # unaffected, i.e. fixture "home_team_id" still resolves to the same number
+    # it would have before the reorder (scoped to the reordered division; `numbers_*`
+    # only covers its teams).
+    reordered_division_fixtures = [f for f in fixtures_after if f["division_id"] == division_id]
+    assert reordered_division_fixtures, "the reordered division should still have fixtures"
+    for fixture in reordered_division_fixtures:
+        assert numbers_after[fixture["home_team_id"]] == numbers_before[fixture["home_team_id"]]
+        assert numbers_after[fixture["away_team_id"]] == numbers_before[fixture["away_team_id"]]
+
+    # CSV export never included a numeric team column and remains unaffected either way.
+    csv_before = client.get(f"/seasons/{season['season_id']}/fixtures.csv").text
+    resp_temp2 = set_position(team_a, 9998)
+    resp_d = set_position(team_b, team_b["position"])
+    resp_c = set_position(team_a, team_a["position"])
+    assert resp_temp2.status_code == 200
+    assert resp_d.status_code == 200
+    assert resp_c.status_code == 200
+    csv_after = client.get(f"/seasons/{season['season_id']}/fixtures.csv").text
+    assert csv_after == csv_before
+
+
+def test_team_number_is_not_an_updatable_field(app_client) -> None:
+    """`TeamInput` (used for both create and update) has no `number` field at all, so a
+    client attempting to set one has it silently dropped before it ever reaches the
+    allow-listed `SeasonService.update` - the same field simply isn't part of the
+    request schema, the same as `id` would be."""
+    client, _ = app_client
+    season = build_realistic_season_via_client(client)
+    team = client.get(f"/seasons/{season['season_id']}").json()["divisions"][0]["teams"][0]
+
+    response = client.patch(
+        f"/teams/{team['id']}",
+        json={
+            "division_id": team["division_id"],
+            "name": team["name"],
+            "position": team["position"],
+            "venue_id": team["venue_id"],
+            "number": 999,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["number"] == team["number"]
+    assert response.json()["number"] != 999
+
+
+# ---------------------------------------------------------------------------
 # Migration safety
 # ---------------------------------------------------------------------------
 
@@ -730,7 +851,7 @@ def test_migrate_is_idempotent_on_a_clean_database(tmp_path) -> None:
         "fixtures",
         "fixture_reschedules",
     }
-    assert versions == {1, 2}
+    assert versions == {1, 2, 3}
     assert expected_tables <= table_names
 
 
@@ -763,7 +884,7 @@ def test_migrate_upgrades_an_existing_phase1_database_without_losing_data(tmp_pa
         preserved = conn.execute(
             "SELECT * FROM seasons WHERE id = ?", (season["id"],)
         ).fetchone()
-    assert versions == {1, 2}
+    assert versions == {1, 2, 3}
     assert "fixture_reschedules" in table_names
     assert preserved is not None
     assert preserved["name"] == "Legacy Season"

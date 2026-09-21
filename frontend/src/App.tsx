@@ -9,6 +9,7 @@ import { CalendarPage } from './features/calendar/CalendarPage'
 import { SchedulePage } from './features/schedule/SchedulePage'
 import { ValidationPage } from './features/validation/ValidationPage'
 import { PosterEditorPage } from './features/poster/PosterEditorPage'
+import { TeamViewPage } from './features/team-view/TeamViewPage'
 
 export function App() {
   return (
@@ -21,6 +22,7 @@ export function App() {
           <Route path="setup" element={<SetupPage />} />
           <Route path="calendar" element={<CalendarPage />} />
           <Route path="schedule" element={<SchedulePage />} />
+          <Route path="team-view" element={<TeamViewPage />} />
           <Route path="validation" element={<ValidationPage />} />
           <Route path="poster" element={<PosterEditorPage />} />
         </Route>

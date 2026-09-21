@@ -40,10 +40,23 @@ interface BaseElement {
 
 export interface HeaderElement extends BaseElement {
   type: 'header'
+  /** Optional masthead photo/graphic, shown behind a diagonal clip on the header's
+   * lead edge. Null means the dark fallback background (or a custom style override)
+   * is used instead - there is always a strong masthead, never a blank rectangle. */
+  backgroundImage: string | null
 }
 
 export interface DivisionsContainerElement extends BaseElement {
   type: 'divisions'
+}
+
+/** Purely decorative brand trim (three colour bands) between the masthead and the
+ * main content, recreating the previous poster's tri-colour trim. Its three bands
+ * always read from the season's primary/secondary/accent colours - there is
+ * deliberately no per-band colour override, keeping it a single coherent brand
+ * statement rather than another place to configure three separate colours. */
+export interface TrimElement extends BaseElement {
+  type: 'trim'
 }
 
 export interface DivisionElement extends BaseElement {
@@ -111,10 +124,13 @@ export type PosterElement =
   | FixtureGridElement
   | CompetitionsElement
   | RulesElement
+  | TrimElement
 
 export interface GlobalStyle {
   backgroundColor: string
   primaryColor: string
+  /** Second brand colour - currently only used by the masthead trim's middle band. */
+  secondaryColor: string
   accentColor: string
   textColor: string
   fontFamily: string

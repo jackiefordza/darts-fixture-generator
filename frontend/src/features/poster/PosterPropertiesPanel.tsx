@@ -6,10 +6,11 @@ import { CompetitionsPanel } from './panels/CompetitionsPanel'
 import { DivisionPanel } from './panels/DivisionPanel'
 import { FixtureGridPanel } from './panels/FixtureGridPanel'
 import { GlobalStylePanel } from './panels/GlobalStylePanel'
+import { HeaderPanel } from './panels/HeaderPanel'
 import { LogoPanel } from './panels/LogoPanel'
 import { RulesPanel } from './panels/RulesPanel'
 import { StyleOverrideFields } from './panels/StyleOverrideFields'
-import type { HeaderElement, DivisionsContainerElement } from './posterTypes'
+import type { DivisionsContainerElement, TrimElement } from './posterTypes'
 import type { PosterEditor } from './usePosterEditor'
 
 function SectionStylePanel({
@@ -18,9 +19,9 @@ function SectionStylePanel({
   onStyleChange,
   onReset,
 }: {
-  element: HeaderElement | DivisionsContainerElement
+  element: DivisionsContainerElement | TrimElement
   globalStyle: PosterEditor['layout']['globalStyle']
-  onStyleChange: (style: HeaderElement['style']) => void
+  onStyleChange: (style: DivisionsContainerElement['style']) => void
   onReset: () => void
 }) {
   return (
@@ -60,6 +61,16 @@ export function PosterPropertiesPanel({
 
   if (!selected) {
     content = <GlobalStylePanel style={layout.globalStyle} onChange={setGlobalStyle} />
+  } else if (selected.type === 'header') {
+    content = (
+      <HeaderPanel
+        element={selected}
+        globalStyle={layout.globalStyle}
+        onChangeImage={(backgroundImage) => updateElement(selected.id, { backgroundImage })}
+        onStyleChange={(style) => updateElement(selected.id, { style })}
+        onReset={requestReset}
+      />
+    )
   } else if (selected.type === 'division') {
     content = (
       <DivisionPanel

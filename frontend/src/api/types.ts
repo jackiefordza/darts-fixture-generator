@@ -89,7 +89,11 @@ export interface Team {
   id: string
   division_id: string
   name: string
+  /** Display order within the division - freely reorderable, has no effect on `number`. */
   position: number
+  /** The team's stable identity: what a fixture like "2v1" or the poster's compact grid
+   * means by "2". Fixed at creation and never changed by reordering `position`. */
+  number: number
   venue_id: string
 }
 
